@@ -50,7 +50,7 @@ export default function Home() {
         userId: event.over?.data?.current?.userId,
       }
     ]);
-  }, [])
+  }, [tasks])
 
   return (
     <div className="flex flex-col items-center mt-20">
