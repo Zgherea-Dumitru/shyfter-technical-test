@@ -1,101 +1,113 @@
-import Image from "next/image";
+"use client"
+
+import { format } from "date-fns"
+import { useCallback, useState } from "react";
+import { DndContext, DragEndEvent } from "@dnd-kit/core";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Task, tasks_mock, users_mock, week_days } from "@/lib/mock-data";
+import Droppable from "@/components/drag-and-drop/Droppable";
+import TaskDragItem from "@/components/task-drag-item/TaskDragItem";
+import EditTaskForm from "@/components/edit-task-dialog/EditTaskDialog";
+import DeleteTaskDialog from "@/components/delete-task-dialog/DeleteTaskDialog";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [tasks, setTasks] = useState<Task[]>(tasks_mock);
+  const [editTask, setEditTask] = useState<Task | null>(null)
+  const [deleteTask, setDeleteTask] = useState<Task | null>(null)
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleTaskDelete = useCallback((taskId: string) => {
+    setTasks(prev => prev.filter((t) => t.id !== taskId))
+  }, [])
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteTask(null)
+  }, [])
+
+  const handleTaskEdit = useCallback((task: Task) => {
+    setTasks(prev => [
+      ...prev.filter((t) => t.id !== task.id),
+      task
+    ])
+    setEditTask(null)
+  }, [])
+  const handleEditCancel = useCallback(() => {
+    setEditTask(null)
+  }, [])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const taskToEdit: Task | undefined = tasks.find((t) => t.id === event.active?.id)
+
+    if (!taskToEdit) {
+      return
+    }
+
+    taskToEdit.start.setDate(event.over?.data?.current?.date.getDate())
+    taskToEdit.end.setDate(event.over?.data?.current?.date.getDate())
+
+    setTasks(prev => [
+      ...prev.filter((t) => t.id !== event.active?.id),
+      {
+        ...taskToEdit,
+        userId: event.over?.data?.current?.userId,
+      }
+    ]);
+  }, [])
+
+  return (
+    <div className="flex flex-col items-center mt-20">
+      <div className="flex ml-48 divide-x border-t border-x">
+        {week_days.map((d) => (
+          <span key={d.getDate()} className="w-40 p-3 text-center">{format(d, 'E d')}</span>
+        ))}
+      </div>
+      <DndContext onDragEnd={handleDragEnd}>
+        <div className="divide-y border">
+          {users_mock.map((u) => (
+            <div key={u.id} className="flex min-h-28 divide-x">
+              <div className="w-48 p-3 flex items-center gap-2">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={u.profileImg} />
+                </Avatar>
+                {u.name}
+              </div>
+              {week_days.map((d) => (
+                <Droppable
+                  key={`${d.getDate()}-${u.id}`}
+                  id={`${d.getDate()}-${u.id}`}
+                  className="w-40"
+                  data={{
+                    userId: u.id,
+                    date: d,
+                  }}
+                >
+                  <TaskDragItem
+                    setEditTask={setEditTask}
+                    setDeleteTask={setDeleteTask}
+                    tasks={tasks.filter((t) => t.userId === u.id && t.start.getDate() === d.getDate())}
+                  />
+                </Droppable>
+              ))}
+            </div>
+          )
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        {editTask && (
+          <EditTaskForm
+            task={editTask}
+            onTaskEdit={handleTaskEdit}
+            onEditCancel={handleEditCancel}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+        )}
+        {deleteTask && (
+          <DeleteTaskDialog
+            task={deleteTask}
+            onDeleteCancel={handleDeleteCancel}
+            onTaskDelete={(task) => {
+              handleTaskDelete(task.id)
+              setDeleteTask(null)
+            }}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        )}
+      </DndContext>
     </div>
   );
 }
